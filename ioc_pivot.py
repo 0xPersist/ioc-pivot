@@ -432,7 +432,10 @@ def render_result(ioc: str, ioc_type: str, results: dict, index: int, total: int
     print(c("║", "dim") + f"  {c('IOC', 'bold')} {c(str(index) + '/' + str(total), 'dim')}  {c(ioc, 'cyan'):<45}" + c("║", "dim"))
     print(c("║", "dim") + f"  {c('Type:', 'dim')} {c(ioc_type_label(ioc_type), 'white'):<55}" + c("║", "dim"))
     print(c("╠" + "═" * 62 + "╣", "dim"))
-    print(c("║", "dim") + f"  Threat Score                                              " + c("║", "dim"))
+    source_count = len([k for k in results if "error" not in results[k]])
+    total_sources = len(results)
+    source_note = c(f"  score based on {source_count}/{total_sources} source{'s' if total_sources != 1 else ''}", "dim")
+    print(c("║", "dim") + f"  Threat Score {source_note:<50}" + c("║", "dim"))
     print(c("║", "dim") + verdict_bar(score) + "          " + c("║", "dim"))
     print(c("╚" + "═" * 62 + "╝", "dim"))
 
