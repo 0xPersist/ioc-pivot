@@ -1,20 +1,35 @@
 # ioc-pivot
 
-CLI tool for rapid IOC enrichment. Query IPs, domains, and file hashes against VirusTotal, AbuseIPDB, and Shodan from the terminal — no browser required.
+CLI tool for rapid IOC enrichment. Query IPs, domains, hashes, and URLs against VirusTotal, AbuseIPDB, Shodan, and AlienVault OTX from the terminal without touching a browser.
 
-Built for SOC analysts and threat hunters who need fast triage without leaving the command line.
+Built for SOC analysts and threat hunters who need fast triage at the command line.
+
+---
+
+## What's New in v2
+
+- OTX (AlienVault) added as a 4th source
+- URL support for VirusTotal
+- Live progress indicator per query
+- Composite threat score (0-100) with visual verdict bar per IOC
+- Summary table at the end of bulk runs
+- Usage type field from AbuseIPDB
+- City-level location from Shodan
+- Tags field from VirusTotal
 
 ---
 
 ## Features
 
-- Supports IPs, domains, MD5/SHA1/SHA256 hashes
-- Sources: VirusTotal, AbuseIPDB, Shodan
+- Supports IPs, domains, URLs, MD5/SHA1/SHA256 hashes
+- Sources: VirusTotal, AbuseIPDB, Shodan, AlienVault OTX
+- Composite threat score with color-coded verdict bar
 - Bulk input via file (one IOC per line)
-- Color-coded terminal output with verdict scoring
+- Live spinner per query so you know it's working
+- Summary table across all IOCs at the end of a run
 - JSON output for pipeline integration or logging
 - Rate-limit aware with configurable request delay
-- Zero config — API keys via environment variables
+- API keys via environment variables
 
 ---
 
@@ -30,39 +45,42 @@ pip install -r requirements.txt
 
 ## API Keys
 
-Set your keys as environment variables before running:
-
 ```bash
 export VTOTAL_API_KEY="your_key_here"
 export ABUSEIPDB_API_KEY="your_key_here"
 export SHODAN_API_KEY="your_key_here"
+export OTX_API_KEY="your_key_here"
 ```
 
-Free tiers are available for all three services and are sufficient for most use cases.
+Free tiers available for all four services:
 
 - VirusTotal: https://www.virustotal.com/gui/join-us
 - AbuseIPDB: https://www.abuseipdb.com/register
 - Shodan: https://account.shodan.io/register
+- OTX: https://otx.alienvault.com
 
 ---
 
 ## Usage
 
 ```
-usage: ioc-pivot [-h] [-i IOC] [-f FILE] [--vt] [--abuse] [--shodan] [--all]
-                 [--json] [--out OUT] [--delay DELAY] [--no-banner]
+usage: ioc-pivot [-h] [-i IOC] [-f FILE] [--vt] [--abuse] [--shodan] [--otx]
+                 [--all] [--json] [--out OUT] [--no-summary] [--delay DELAY]
+                 [--no-banner]
 
 options:
-  -i, --ioc      Single IOC to query (IP, domain, or hash)
-  -f, --file     File containing one IOC per line
-  --vt           Query VirusTotal
-  --abuse        Query AbuseIPDB (IPs only)
-  --shodan       Query Shodan (IPs only)
-  --all          Query all available sources
-  --json         Output results as JSON
-  --out OUT      Write JSON output to file
-  --delay DELAY  Delay between requests in seconds (default: 1.0)
-  --no-banner    Suppress banner
+  -i, --ioc        Single IOC to query (IP, domain, hash, or URL)
+  -f, --file       File containing one IOC per line
+  --vt             Query VirusTotal
+  --abuse          Query AbuseIPDB (IPs only)
+  --shodan         Query Shodan (IPs only)
+  --otx            Query AlienVault OTX
+  --all            Query all available sources
+  --json           Output results as JSON
+  --out OUT        Write JSON output to file
+  --no-summary     Skip summary table at end of bulk runs
+  --delay DELAY    Delay between requests in seconds (default: 1.0)
+  --no-banner      Suppress banner
 ```
 
 ---
@@ -74,51 +92,24 @@ options:
 ioc-pivot -i 198.51.100.23 --all
 ```
 
-**Hash lookup on VirusTotal:**
+**Hash lookup:**
 ```bash
-ioc-pivot -i 44d88612fea8a8f36de82e1278abb02f --vt
+ioc-pivot -i 44d88612fea8a8f36de82e1278abb02f --vt --otx
 ```
 
-**Bulk IOC file, JSON output:**
+**URL scan:**
 ```bash
-ioc-pivot -f iocs.txt --vt --abuse --json --out results.json
+ioc-pivot -i https://malware.example.com/payload --vt
 ```
 
-**Pipe-friendly with no banner:**
+**Bulk file run with JSON output:**
 ```bash
-ioc-pivot -i malware.example.com --vt --json --no-banner | jq .
+ioc-pivot -f iocs.txt --all --out results.json
 ```
 
----
-
-## Sample Output
-
-```
-  ────────────────────────────────────────────────────────────
-  IOC  : 198.51.100.23
-  Type : ip
-  ────────────────────────────────────────────────────────────
-
-  [VirusTotal]
-    Detections : 12 malicious / 2 suspicious of 94 engines
-    Reputation : -42
-    Country    : RU
-    ASN Owner  : AS12345 Some Hosting LLC
-
-  [AbuseIPDB]
-    Abuse Score  : 87%
-    Reports      : 143
-    Country      : RU
-    ISP          : Some Hosting LLC
-    TOR Exit     : NO
-    Last Report  : 2024-11-01T14:22:00+00:00
-
-  [Shodan]
-    Org       : Some Hosting LLC
-    Country   : Russia
-    Ports     : 22, 80, 443, 8080
-    Tags      : self-signed
-    CVEs      : CVE-2021-44228, CVE-2022-26134
+**Pipe-friendly:**
+```bash
+ioc-pivot -i 198.51.100.23 --vt --json --no-banner | jq .
 ```
 
 ---
@@ -128,7 +119,7 @@ ioc-pivot -i malware.example.com --vt --json --no-banner | jq .
 Plain text, one IOC per line. Lines starting with `#` are treated as comments.
 
 ```
-# Suspicious IPs from honeypot
+# Suspicious IPs from alert triage
 198.51.100.23
 198.51.100.44
 
@@ -138,6 +129,19 @@ Plain text, one IOC per line. Lines starting with `#` are treated as comments.
 # Suspicious domains
 malware.example.com
 ```
+
+---
+
+## Threat Scoring
+
+Each IOC gets a composite threat score from 0-100 calculated across all queried sources:
+
+- VirusTotal detection ratio weighted by engine count
+- AbuseIPDB confidence score
+- Shodan CVE count contribution
+- OTX pulse count contribution
+
+Scores are color-coded: green (clean), yellow (suspicious), red (high threat).
 
 ---
 
@@ -151,7 +155,7 @@ malware.example.com
 
 ## License
 
-MIT — see [LICENSE](LICENSE)
+MIT. See [LICENSE](LICENSE).
 
 ---
 
