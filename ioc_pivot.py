@@ -637,10 +637,10 @@ api keys (env vars):
     shodan_key = os.environ.get("SHODAN_API_KEY", "")
     otx_key    = os.environ.get("OTX_API_KEY", "")
 
-    if args.vt     and not vt_key:     print(c("[!] VTOTAL_API_KEY not set", "red"))
-    if args.abuse  and not abuse_key:  print(c("[!] ABUSEIPDB_API_KEY not set", "red"))
-    if args.shodan and not shodan_key: print(c("[!] SHODAN_API_KEY not set", "red"))
-    if args.otx    and not otx_key:    print(c("[!] OTX_API_KEY not set", "red"))
+    if args.vt     and not vt_key:     print(c("[!] VTOTAL_API_KEY not set", "red"), file=sys.stderr)
+    if args.abuse  and not abuse_key:  print(c("[!] ABUSEIPDB_API_KEY not set", "red"), file=sys.stderr)
+    if args.shodan and not shodan_key: print(c("[!] SHODAN_API_KEY not set", "red"), file=sys.stderr)
+    if args.otx    and not otx_key:    print(c("[!] OTX_API_KEY not set", "red"), file=sys.stderr)
 
     iocs = []
     if args.ioc:

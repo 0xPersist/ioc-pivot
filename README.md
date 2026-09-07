@@ -112,9 +112,8 @@ ioc-pivot -f iocs.txt --all --out results.json
 ioc-pivot -i 198.51.100.23 --vt --json --no-banner | jq .
 ```
 
-Note: if any requested source has no API key set, the `[!] ... not set` warning is written
-to stdout ahead of the JSON and will break `jq`. Export a key for every source you pass, or
-strip the warning lines before parsing.
+Missing-key warnings are written to stderr, so `--json` stdout stays parseable even when a
+requested source has no key configured.
 
 ---
 
