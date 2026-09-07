@@ -112,6 +112,10 @@ ioc-pivot -f iocs.txt --all --out results.json
 ioc-pivot -i 198.51.100.23 --vt --json --no-banner | jq .
 ```
 
+Note: if any requested source has no API key set, the `[!] ... not set` warning is written
+to stdout ahead of the JSON and will break `jq`. Export a key for every source you pass, or
+strip the warning lines before parsing.
+
 ---
 
 ## IOC File Format
@@ -134,14 +138,25 @@ malware.example.com
 
 ## Threat Scoring
 
-Each IOC gets a composite threat score from 0-100 calculated across all queried sources:
+Each IOC gets a threat score calculated across all queried sources:
 
-- VirusTotal detection ratio weighted by engine count
-- AbuseIPDB confidence score
-- Shodan CVE count contribution
-- OTX pulse count contribution
+- VirusTotal detection ratio weighted by engine count (contributes 0-100)
+- AbuseIPDB confidence score (0-100)
+- Shodan CVE count contribution (0-60)
+- OTX pulse count contribution (0-80)
 
 Scores are color-coded: green (clean), yellow (suspicious), red (high threat).
+
+**How the sources combine, and its limits.** The score is the **arithmetic mean** of the
+sub-scores of the sources you actually queried, so the attainable range depends on which
+flags you pass. Because the Shodan and OTX sub-scores are capped below 100, the maximum
+score under `--all` is **85**, not 100. `--shodan` alone tops out at 60 and `--otx` alone
+at 80.
+
+Averaging also means the score does not rise with corroboration: an IOC that VirusTotal
+rates maximally malicious scores 100 under `--vt` alone, and 80 once a maximally
+malicious Shodan result is added. Compare scores only between runs that used the same
+set of sources, and read the per-source detail rather than the number alone.
 
 ---
 
