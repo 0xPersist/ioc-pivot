@@ -146,16 +146,32 @@ Each IOC gets a threat score calculated across all queried sources:
 
 Scores are color-coded: green (clean), yellow (suspicious), red (high threat).
 
-**How the sources combine, and its limits.** The score is the **arithmetic mean** of the
-sub-scores of the sources you actually queried, so the attainable range depends on which
-flags you pass. Because the Shodan and OTX sub-scores are capped below 100, the maximum
-score under `--all` is **85**, not 100. `--shodan` alone tops out at 60 and `--otx` alone
-at 80.
+**How the sources combine.** The strongest single source sets the floor, and every
+further source that also indicates malicious activity adds a diminishing bonus on top:
 
-Averaging also means the score does not rise with corroboration: an IOC that VirusTotal
-rates maximally malicious scores 100 under `--vt` alone, and 80 once a maximally
-malicious Shodan result is added. Compare scores only between runs that used the same
-set of sources, and read the per-source detail rather than the number alone.
+```
+base  = max(sub-scores of the sources that returned data)
+bonus = +10 for the 2nd corroborating source
+        +6  for the 3rd
+        +3  for the 4th
+score = min(100, base + bonus)
+```
+
+Adding a source can only raise the score or leave it unchanged, never lower it, so
+agreement between independent sources reads as more confidence rather than less. An IOC
+that VirusTotal rates maximally malicious scores 100 under `--vt` alone and still scores
+100 once a maximally malicious Shodan result is added.
+
+The per-source caps above still apply to each sub-score, because Shodan's CVE count and
+OTX's pulse count are circumstantial on their own: `--shodan` alone still tops out at 60
+and `--otx` alone at 80. They no longer cap the composite, though — a Shodan and an OTX
+hit corroborated by AbuseIPDB and VirusTotal can reach 100 together even when no single
+source gets there alone. Sources that returned data and found nothing contribute no
+bonus, so a lone malicious verdict among three clean ones stays at its own sub-score.
+
+Scores remain comparable only between runs that queried the same set of sources: a
+source you did not query cannot corroborate. Read the per-source detail rather than the
+number alone.
 
 ---
 
@@ -164,6 +180,17 @@ set of sources, and read the per-source detail rather than the number alone.
 - Python 3.8+
 - `requests`
 - `colorama` (optional, for colored output)
+
+---
+
+## Tests
+
+```bash
+python3 run_tests.py
+```
+
+The suite exercises the scoring model directly with synthetic source responses, so it
+makes no network calls and needs no API keys.
 
 ---
 

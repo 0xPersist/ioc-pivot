@@ -69,12 +69,21 @@ def spinner_char(i):
 
 # ── Verdict bar ────────────────────────────────────────────────────────────────
 
-def threat_score(results: dict) -> int:
+# Diminishing bonus for each source *beyond the strongest* that also indicates
+# malicious activity. Corroboration between independent sources raises
+# confidence in a verdict; it must never reduce it.
+CORROBORATION_BONUS = (10, 6, 3)
+
+
+def source_sub_scores(results: dict) -> list:
     """
-    Compute a 0-100 composite threat score across all sources.
+    0-100 sub-score for each source that returned usable data.
+
+    The per-source caps stay: Shodan (exposed CVEs) and OTX (pulse count) are
+    circumstantial on their own and cannot carry a verdict to the top of the
+    range by themselves.
     """
-    score = 0
-    sources = 0
+    subs = []
 
     vt = results.get("virustotal", {})
     if "error" not in vt and vt:
@@ -82,29 +91,43 @@ def threat_score(results: dict) -> int:
         sus = vt.get("suspicious", 0)
         total = mal + sus + vt.get("harmless", 0) + vt.get("undetected", 0)
         if total > 0:
-            score += int(((mal + sus * 0.5) / total) * 100)
-            sources += 1
+            subs.append(int(((mal + sus * 0.5) / total) * 100))
 
     ab = results.get("abuseipdb", {})
     if "error" not in ab and ab:
-        score += ab.get("abuse_score", 0)
-        sources += 1
+        subs.append(min(ab.get("abuse_score", 0), 100))
 
     sh = results.get("shodan", {})
     if "error" not in sh and sh:
         vulns = len(sh.get("vulns", []))
-        score += min(vulns * 15, 60)
-        sources += 1
+        subs.append(min(vulns * 15, 60))
 
     otx = results.get("otx", {})
     if "error" not in otx and otx:
         pulses = otx.get("pulse_count", 0)
-        score += min(pulses * 10, 80)
-        sources += 1
+        subs.append(min(pulses * 10, 80))
 
-    if sources == 0:
+    return subs
+
+
+def threat_score(results: dict) -> int:
+    """
+    Compute a 0-100 composite threat score across all sources.
+
+    The strongest single source sets the floor, and each further source that
+    also indicates malicious activity adds a diminishing bonus on top. Adding
+    a source can only raise the score or leave it unchanged, never lower it,
+    so agreement between independent sources reads as more confidence rather
+    than less.
+    """
+    subs = source_sub_scores(results)
+    if not subs:
         return 0
-    return min(int(score / sources), 100)
+
+    base = max(subs)
+    corroborating = sum(1 for s in subs if s > 0)
+    bonus = sum(CORROBORATION_BONUS[:max(0, corroborating - 1)])
+    return min(100, base + bonus)
 
 
 def verdict_bar(score: int) -> str:
